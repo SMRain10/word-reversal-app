@@ -1,1 +1,50 @@
-ECHO is on.
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-docker-images:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Build and push frontend Docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: ./word-reversal-frontend-main/word-reversal-frontend-main
+          push: true
+          tags: SMRain10/word-reversal-frontend:latest
+          
+      - name: Build and push backend Docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: ./word-reversal-backend-master/word-reversal-backend-master
+          push: true
+          tags: SMRain10/word-reversal-backend:latest
+    
+  deploy-to-aws:
+    needs: build-docker-images
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.0.0
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: terraform plan -var="frontend_image=SMRain10/word-reversal-frontend:latest" -var="backend_image=SMRain10/word-reversal-backend:latest"
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve -var="frontend_image=SMRain10/word-reversal-frontend:latest" -var="backend_image=SMRain10/word-reversal-backend:latest"
