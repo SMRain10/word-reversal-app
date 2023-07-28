@@ -49,7 +49,7 @@ jobs:
         run: |
           echo "${{ env.AWS_PRIVATE_KEY }}" > "Dev Key.pem"
           chmod 600 "Dev Key.pem"
-      - name: Pull Docker images
+      - name: Pull Docker image
         run: |
           ssh -o StrictHostKeyChecking=no -i "Dev Key.pem" ec2-user@3.145.25.10 'sudo docker pull srainbow10/word-reversal-frontend:latest'
           ssh -o StrictHostKeyChecking=no -i "Dev Key.pem" ec2-user@3.145.25.10 'sudo docker pull srainbow10/word-reversal-backend:latest'
@@ -57,12 +57,9 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no -i "Dev Key.pem" ec2-user@3.145.25.10 'sudo docker stop word-reversal-frontend || true'
           ssh -o StrictHostKeyChecking=no -i "Dev Key.pem" ec2-user@3.145.25.10 'sudo docker stop word-reversal-backend || true'
-      - name: Remove existing containers
-        run: |
           ssh -o StrictHostKeyChecking=no -i "Dev Key.pem" ec2-user@3.145.25.10 'sudo docker rm word-reversal-frontend || true'
           ssh -o StrictHostKeyChecking=no -i "Dev Key.pem" ec2-user@3.145.25.10 'sudo docker rm word-reversal-backend || true'
       - name: Run new containers
         run: |
-          ssh -o StrictHostKeyChecking=no -i "Dev Key.pem" ec2-user@3.145.25.10 'sudo docker run -d --name word-reversal-frontend -p 8080:3000 srainbow10/word-reversal-frontend:latest' 
-          ssh -o StrictHostKeyChecking=no -i "Dev Key.pem" ec2-user@3.145.25.10 'sudo docker run -d --name word-reversal-backend -p 8081:8081 srainbow10/word-reversal-backend:latest'
-   
+          ssh -o StrictHostKeyChecking=no -i "Dev Key.pem" ec2-user@3.145.25.10 'sudo docker run -d --name word-reversal-frontend -p 80:8080 srainbow10/word-reversal-frontend:latest'
+          ssh -o StrictHostKeyChecking=no -i "Dev Key.pem" ec2-user@3.145.25.10 'sudo docker run -d --name word-reversal-backend -p 8081:8081 srainbow10/word-reversal-backend:latest' 
