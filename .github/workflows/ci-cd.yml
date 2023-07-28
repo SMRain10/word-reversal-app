@@ -5,6 +5,11 @@ on:
     branches:
       - main
 
+env:
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  AWS_PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY }}
+
 jobs:
   build-docker-images:
     runs-on: ubuntu-latest
@@ -18,14 +23,14 @@ jobs:
         with:
           context: ./word-reversal-frontend-main/word-reversal-frontend-main
           push: true
-          tags: SMRain10/word-reversal-frontend:latest
+          tags: srainbow10/word-reversal-frontend:latest
           
       - name: Build and push backend Docker image
         uses: docker/build-push-action@v2
         with:
           context: ./word-reversal-backend-master/word-reversal-backend-master
           push: true
-          tags: SMRain10/word-reversal-backend:latest
+          tags: srainbow10/word-reversal-backend:latest
     
   deploy-to-aws:
     needs: build-docker-images
@@ -34,17 +39,30 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-
-      - name: Install Terraform
-        uses: hashicorp/setup-terraform@v1
+        
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
         with:
-          terraform_version: 1.0.0
-
-      - name: Terraform Init
-        run: terraform init
-
-      - name: Terraform Plan
-        run: terraform plan -var="frontend_image=SMRain10/word-reversal-frontend:latest" -var="backend_image=SMRain10/word-reversal-backend:latest"
-
-      - name: Terraform Apply
-        run: terraform apply -auto-approve -var="frontend_image=SMRain10/word-reversal-frontend:latest" -var="backend_image=SMRain10/word-reversal-backend:latest"
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
+      - name: Set permissions for private key
+        run: |
+          echo "${{ env.AWS_PRIVATE_KEY }}" > "Dev Key.pem"
+          chmod 600 "Dev Key.pem"
+      - name: Pull Docker images
+        run: |
+          ssh -o StrictHostKeyChecking=no -i "Dev Key.pem" ec2-user@3.145.25.10 'sudo docker pull srainbow10/word-reversal-frontend:latest'
+          ssh -o StrictHostKeyChecking=no -i "Dev Key.pem" ec2-user@3.145.25.10 'sudo docker pull srainbow10/word-reversal-backend:latest'
+      - name: Stop running containers
+        run: |
+          ssh -o StrictHostKeyChecking=no -i "Dev Key.pem" ec2-user@3.145.25.10 'sudo docker stop word-reversal-frontend || true'
+          ssh -o StrictHostKeyChecking=no -i "Dev Key.pem" ec2-user@3.145.25.10 'sudo docker stop word-reversal-backend || true'
+      - name: Remove existing containers
+        run: |
+          ssh -o StrictHostKeyChecking=no -i "Dev Key.pem" ec2-user@3.145.25.10 'sudo docker rm word-reversal-frontend || true'
+          ssh -o StrictHostKeyChecking=no -i "Dev Key.pem" ec2-user@3.145.25.10 'sudo docker rm word-reversal-backend || true'
+      - name: Run new containers
+        run: |
+          ssh -o StrictHostKeyChecking=no -i "Dev Key.pem" ec2-user@3.145.25.10 'sudo docker run -d --name word-reversal-frontend -p 8080:3000 srainbow10/word-reversal-frontend:latest' 
+          ssh -o StrictHostKeyChecking=no -i "Dev Key.pem" ec2-user@3.145.25.10 'sudo docker run -d --name word-reversal-backend -p 8081:8081 srainbow10/word-reversal-backend:latest'
+   
